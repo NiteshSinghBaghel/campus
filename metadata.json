@@ -1,0 +1,10 @@
+{
+  "name": "CampusPass - College Events & Tickets",
+  "description": "Mobile-first college event discovery and ticketing platform with UPI payment verification, digital QR tickets, and host entry scanner.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
