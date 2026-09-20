@@ -8,8 +8,22 @@ export interface UserProfile {
   role: UserRole;
   phone?: string;
   college?: string;
+  authProvider?: 'email' | 'google';
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RegisteredAccount {
+  uid: string;
+  name: string;
+  email: string;
+  password?: string;
+  role: UserRole;
+  phone?: string;
+  college?: string;
+  photoURL?: string;
+  authProvider: 'email' | 'google';
+  createdAt: string;
 }
 
 export type EventStatus = 'draft' | 'published' | 'sold_out' | 'cancelled' | 'completed';

@@ -47,7 +47,7 @@ export const HostAttendeesPage: React.FC<HostAttendeesPageProps> = ({
 
   const relevantTickets = selectedEvent
     ? allTickets.filter(t => t.eventId === selectedEvent.eventId)
-    : allTickets.filter(t => t.hostId === currentUser?.uid || currentUser?.uid === 'host-council-101');
+    : allTickets.filter(t => t.hostId === currentUser?.uid);
 
   const filteredTickets = relevantTickets.filter((t) => {
     // Mode filter

@@ -14,16 +14,10 @@ import {
   ExternalLink
 } from 'lucide-react';
 
-interface ProfilePageProps {
-  onSwitchToHostView?: () => void;
-  onSwitchToUserView?: () => void;
-}
+interface ProfilePageProps {}
 
-export const ProfilePage: React.FC<ProfilePageProps> = ({
-  onSwitchToHostView,
-  onSwitchToUserView,
-}) => {
-  const { currentUser, role, switchRole, logout, updateProfile } = useAuth();
+export const ProfilePage: React.FC<ProfilePageProps> = () => {
+  const { currentUser, role, logout, updateProfile } = useAuth();
 
   const [name, setName] = useState(currentUser?.name || '');
   const [college, setCollege] = useState(currentUser?.college || 'Imperial Institute of Technology');
@@ -41,9 +35,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     <div className="pb-28 max-w-xl mx-auto px-4 pt-3">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-black text-slate-900">Student & Host Profile</h1>
+        <h1 className="text-2xl font-black text-slate-900">Account Profile</h1>
         <p className="text-xs text-slate-500">
-          Manage identity, college credentials, and platform role permissions
+          Manage your personal details and campus credentials
         </p>
       </div>
 
@@ -76,32 +70,26 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </div>
         </div>
 
-        {/* Role Toggle Switch Banner */}
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 mb-6">
+        {/* Locked Session Role Card (Role selected at login only) */}
+        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3 mb-6">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+            role === 'host' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'
+          }`}>
+            <ShieldCheck className="w-5 h-5" />
+          </div>
           <div>
-            <span className="text-xs font-bold text-slate-900 block">Active Account Role</span>
-            <p className="text-[11px] text-slate-500">
-              {role === 'host'
-                ? 'Switch back to Student to browse and purchase passes'
-                : 'Switch to Host mode to publish events & scan QR gate passes'}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black text-slate-900">
+                Active Role: {role === 'host' ? '⚡ Event Host / Organizer' : '🎓 Student / Attendee'}
+              </span>
+              <span className="text-[10px] px-2 py-0.2 rounded-md bg-slate-200 text-slate-700 font-bold">
+                Locked
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Your role was selected during login. To access the {role === 'host' ? 'Student' : 'Host'} portal, please log out and sign in with that role.
             </p>
           </div>
-
-          <button
-            onClick={() => {
-              const nextRole = role === 'user' ? 'host' : 'user';
-              switchRole(nextRole);
-              if (nextRole === 'host' && onSwitchToHostView) onSwitchToHostView();
-              if (nextRole === 'user' && onSwitchToUserView) onSwitchToUserView();
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-black shrink-0 transition ${
-              role === 'host'
-                ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs'
-                : 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-xs'
-            }`}
-          >
-            {role === 'host' ? 'Switch to Student' : 'Switch to Host'}
-          </button>
         </div>
 
         {/* Edit Profile Form */}
@@ -158,24 +146,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           <span>Security & UPI Settlement Rules</span>
         </div>
         <p className="text-[11px] leading-relaxed text-slate-500">
-          • All tickets issued contain SHA-256 cryptographic signatures verified server-side.
+          • All tickets issued contain SHA-256 cryptographic signatures verified at entry.
           <br />
-          • UPI payments use zero frontend trusting policy with atomic ticket inventory transactions.
+          • UPI transactions enforce zero client trust with instantaneous pass inventory verification.
           <br />
-          • Double-entry gate scanning is strictly enforced by the backend ledger.
+          • Ticket validation and check-ins are logged with real-time timestamps.
         </p>
-
-        <button
-          onClick={() => {
-            if (confirm('Reset demo storage to factory state?')) {
-              localStorage.clear();
-              window.location.reload();
-            }
-          }}
-          className="mt-2 py-2 px-3 rounded-xl bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold text-[11px] flex items-center gap-1.5 transition"
-        >
-          <RotateCcw className="w-3.5 h-3.5 text-amber-600" /> Reset Demo Events & Tickets Data
-        </button>
       </div>
 
       {/* Sign out */}

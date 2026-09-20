@@ -57,14 +57,14 @@ export const HostDashboardPage: React.FC<HostDashboardPageProps> = ({
   const [isPayoutModalOpen, setIsPayoutModalOpen] = useState(false);
   const [payoutsVersion, setPayoutsVersion] = useState(0);
 
-  // Filter events for this host (or show all in demo host mode)
+  // Filter events for this host
   const hostEvents = events.filter(
-    (e) => e.hostId === currentUser?.uid || currentUser?.uid === 'host-council-101'
+    (e) => e.hostId === currentUser?.uid
   );
 
   const allTickets = StorageService.getTickets();
   const hostTickets = allTickets.filter(
-    (t) => t.hostId === currentUser?.uid || currentUser?.uid === 'host-council-101'
+    (t) => t.hostId === currentUser?.uid || hostEvents.some(e => e.eventId === t.eventId)
   );
 
   // Compute Statistics

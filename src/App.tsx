@@ -158,10 +158,7 @@ export const App: React.FC = () => {
 
             {/* Shared Profile Screen */}
             {activeTab === 'profile' && (
-              <ProfilePage
-                onSwitchToHostView={() => setActiveTab('host-dashboard')}
-                onSwitchToUserView={() => setActiveTab('home')}
-              />
+              <ProfilePage />
             )}
           </>
         )}

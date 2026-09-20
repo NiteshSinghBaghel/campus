@@ -10,7 +10,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenSearch, activeTab, onNavigate }) => {
-  const { currentUser, role, switchRole } = useAuth();
+  const { currentUser, role } = useAuth();
 
   return (
     <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/90 px-4 py-3 shadow-xs">
@@ -40,20 +40,18 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenSearch, activeTab, onNavig
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
-          {/* Quick Role Switcher Pill */}
-          <button
-            onClick={() => switchRole(role === 'user' ? 'host' : 'user')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+          {/* Static Role Indicator Badge (Role cannot be changed after login) */}
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border shadow-2xs select-none ${
               role === 'host'
-                ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 shadow-2xs'
-                : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 shadow-2xs'
+                ? 'bg-amber-50 text-amber-900 border-amber-300'
+                : 'bg-indigo-50 text-indigo-700 border-indigo-200'
             }`}
-            title="Click to toggle between Student & Host roles"
           >
             {role === 'host' ? (
               <>
                 <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                <span>Host View</span>
+                <span>Host Portal</span>
               </>
             ) : (
               <>
@@ -61,8 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenSearch, activeTab, onNavig
                 <span>Student</span>
               </>
             )}
-            <span className="text-[10px] opacity-75 underline ml-0.5">Switch</span>
-          </button>
+          </div>
 
           {role === 'user' && onOpenSearch && (
             <button
