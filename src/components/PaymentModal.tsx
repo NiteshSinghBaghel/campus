@@ -9,9 +9,7 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Loader2, 
-  Smartphone, 
   ArrowRight,
-  ArrowLeft,
   Ticket as TicketIcon,
   User,
   Mail,
@@ -32,7 +30,7 @@ interface PaymentModalProps {
   onSuccess: (ticket: Ticket) => void;
 }
 
-type StepType = 'form' | 'upi' | 'processing' | 'verifying' | 'success' | 'failed';
+type StepType = 'form' | 'processing' | 'verifying' | 'success' | 'failed';
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClose, onSuccess }) => {
   const { currentUser } = useAuth();
@@ -58,8 +56,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
 
   // Payment State
   const [step, setStep] = useState<StepType>('form');
-  const [selectedUpiApp, setSelectedUpiApp] = useState<'gpay' | 'phonepe' | 'paytm' | 'bhim' | 'custom'>('gpay');
-  const [customVpa, setCustomVpa] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [generatedTicket, setGeneratedTicket] = useState<Ticket | null>(null);
 
@@ -123,13 +119,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
       // Step 1: Server-side order creation (validates stock atomically)
       const order = await PaymentService.createPaymentOrder(event.eventId);
 
-      // Step 2: UPI Gateway Simulation
+      // Step 2: Payment Gateway Simulation
       setStep('verifying');
-      const dummyPaymentId = `pay_upi_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const dummyPaymentId = `pay_gw_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-      const vpaAddress = selectedUpiApp === 'custom' 
-        ? (customVpa || `${phone}@upi`) 
-        : `${email.split('@')[0]}@${selectedUpiApp === 'gpay' ? 'okaxis' : selectedUpiApp === 'phonepe' ? 'ybl' : selectedUpiApp === 'paytm' ? 'paytm' : 'upi'}`;
+      const vpaAddress = `${phone}@gateway`;
 
       // Step 3: Server verifies payment signature, decrements stock by quantity, and mints ticket
       const verification = await PaymentService.verifyPayment({
@@ -201,7 +195,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
             {/* Step 1 */}
             <div className="flex items-center gap-1.5">
               <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition ${
-                step === 'form' || step === 'upi'
+                step === 'form'
                   ? 'bg-indigo-600 text-white shadow-xs' 
                   : 'bg-emerald-600 text-white'
               }`}>
@@ -222,7 +216,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
               }`}>
                 2
               </div>
-              <span className="text-[11px] font-bold text-slate-700 hidden sm:inline">Payment</span>
+              <span className="text-[11px] font-bold text-slate-700 hidden sm:inline">Payment Gateway</span>
             </div>
             <div className="h-0.5 w-8 sm:w-12 bg-slate-200" />
 
@@ -388,38 +382,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
                 </div>
               </div>
 
-              {/* UPI Payment App Selection */}
-              {totalAmount > 0 && (
-                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                    <Smartphone className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Select Payment UPI App:</span>
-                  </label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { id: 'gpay', name: 'Google Pay', icon: '⚡' },
-                      { id: 'phonepe', name: 'PhonePe', icon: '🟣' },
-                      { id: 'paytm', name: 'Paytm', icon: '🔵' },
-                      { id: 'bhim', name: 'BHIM UPI', icon: '🇮🇳' },
-                    ].map((app) => (
-                      <button
-                        key={app.id}
-                        type="button"
-                        onClick={() => setSelectedUpiApp(app.id as any)}
-                        className={`py-2 px-1 rounded-xl text-xs font-semibold border flex flex-col items-center gap-1 transition ${
-                          selectedUpiApp === app.id
-                            ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600 shadow-2xs'
-                            : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        <span className="text-base">{app.icon}</span>
-                        <span className="text-[10px] font-medium">{app.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Pass Total Box */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-1.5">
                 <div className="flex justify-between items-baseline">
@@ -461,100 +423,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
           </div>
         )}
 
-        {/* ================= STEP 2: UPI PAYMENT SELECTION (FALLBACK) ================= */}
-        {step === 'upi' && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4 bg-white">
-              <div className="flex items-center gap-2 text-indigo-600 text-xs font-bold uppercase tracking-wider">
-                <ShieldCheck className="w-4 h-4" /> Step 2: Instant UPI Payment
-              </div>
-              <h2 className="text-lg font-black text-slate-900">Choose UPI App & Book</h2>
-
-              {/* Attendee Review Badge */}
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-1">
-                <p><b className="text-slate-900">Attendee:</b> {fullName} • {phone}</p>
-                <p><b className="text-slate-900">Institution:</b> {collegeName} ({rollNo})</p>
-                <p><b className="text-slate-900">Passes:</b> {ticketQuantity} ticket(s) • Total: <span className="text-emerald-600 font-bold">{totalAmount === 0 ? 'FREE' : `₹${totalAmount}`}</span></p>
-              </div>
-
-              {/* Payment Method Selector */}
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-2">
-                  Select UPI App:
-                </label>
-
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { id: 'gpay', name: 'Google Pay', icon: '⚡' },
-                    { id: 'phonepe', name: 'PhonePe', icon: '🟣' },
-                    { id: 'paytm', name: 'Paytm', icon: '🔵' },
-                    { id: 'bhim', name: 'BHIM UPI', icon: '🇮🇳' },
-                  ].map((app) => (
-                    <button
-                      key={app.id}
-                      type="button"
-                      onClick={() => setSelectedUpiApp(app.id as any)}
-                      className={`py-2 px-1.5 rounded-xl text-xs font-semibold border flex flex-col items-center gap-1 transition ${
-                        selectedUpiApp === app.id
-                          ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600'
-                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span className="text-base">{app.icon}</span>
-                      <span className="text-[10px]">{app.name}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="mt-3">
-                  <input
-                    type="text"
-                    placeholder="Or enter UPI ID (e.g. mobile@upi)"
-                    value={customVpa}
-                    onChange={(e) => {
-                      setCustomVpa(e.target.value);
-                      setSelectedUpiApp('custom');
-                    }}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="p-4 sm:p-5 bg-white border-t border-slate-100 shrink-0 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setStep('form')}
-                className="py-3 px-4 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 transition border border-slate-200"
-              >
-                <ArrowLeft className="w-4 h-4" /> Back
-              </button>
-
-              <button
-                type="button"
-                onClick={handleStartPayment}
-                className="flex-1 py-4 px-5 rounded-2xl bg-[#545df7] hover:bg-[#434de6] text-white font-black text-sm shadow-md flex items-center justify-center gap-2 transition active:scale-[0.98]"
-              >
-                <TicketIcon className="w-4 h-4" />
-                <span>{totalAmount === 0 ? 'Book Free Pass Now' : `Book Ticket Now • ₹${totalAmount}`}</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ================= STEP 3: PROCESSING & VERIFYING ================= */}
+        {/* ================= STEP 2: PROCESSING & VERIFYING ================= */}
         {(step === 'processing' || step === 'verifying') && (
           <div className="py-14 text-center flex flex-col items-center bg-white px-6">
             <div className="relative">
               <div className="w-16 h-16 rounded-full border-4 border-slate-100 border-t-indigo-600 animate-spin" />
               <div className="absolute inset-0 flex items-center justify-center text-xs font-black text-indigo-600">
-                UPI
+                PAY
               </div>
             </div>
 
             <h3 className="text-lg font-black text-slate-900 mt-5">
-              {step === 'processing' ? 'Connecting to UPI Gateway...' : 'Minting Entry Pass with QR...'}
+              {step === 'processing' ? 'Connecting to Payment Gateway...' : 'Minting Entry Pass with QR...'}
             </h3>
             <p className="text-xs text-slate-500 mt-2 max-w-xs leading-relaxed">
               {step === 'processing'
@@ -563,7 +443,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
             </p>
 
             <div className="mt-6 flex items-center gap-2 text-[11px] text-indigo-700 bg-indigo-50 px-3.5 py-1.5 rounded-full border border-indigo-200">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" /> Processing booking, please wait...
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" /> Processing payment, please wait...
             </div>
           </div>
         )}

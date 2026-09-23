@@ -7,7 +7,6 @@ import {
   Search, 
   CheckCircle2, 
   XCircle, 
-  QrCode, 
   ArrowLeft,
   Download,
   PhoneCall,
@@ -22,13 +21,11 @@ import {
 interface HostAttendeesPageProps {
   selectedEvent?: CollegeEvent | null;
   onBack?: () => void;
-  onScanAttendee?: (ticket: Ticket) => void;
 }
 
 export const HostAttendeesPage: React.FC<HostAttendeesPageProps> = ({
   selectedEvent,
   onBack,
-  onScanAttendee,
 }) => {
   const { currentUser } = useAuth();
   const [filterMode, setFilterMode] = useState<'all' | 'entered' | 'not_entered'>('all');
@@ -290,17 +287,6 @@ export const HostAttendeesPage: React.FC<HostAttendeesPageProps> = ({
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
-
-                    {onScanAttendee && (
-                      <button
-                        onClick={() => onScanAttendee(t)}
-                        className="py-1 px-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold flex items-center gap-1 transition ml-1"
-                        title="Gate Scan Pass"
-                      >
-                        <QrCode className="w-3.5 h-3.5" />
-                        <span>{isEntered ? 'Re-scan' : 'Scan'}</span>
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>

@@ -147,10 +147,6 @@ export const App: React.FC = () => {
                   <HostAttendeesPage
                     selectedEvent={selectedAttendeeEvent}
                     onBack={selectedAttendeeEvent ? () => setSelectedAttendeeEvent(null) : undefined}
-                    onScanAttendee={(ticket) => {
-                      setPrefilledScanTicket(ticket);
-                      setIsScannerOpen(true);
-                    }}
                   />
                 )}
               </>

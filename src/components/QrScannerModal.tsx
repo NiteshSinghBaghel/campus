@@ -9,7 +9,6 @@ import {
   Scan, 
   Camera, 
   Upload,
-  Sparkles,
   RefreshCw,
   UserCheck,
   ShieldCheck,
@@ -61,9 +60,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const isScanningActiveRef = useRef<boolean>(true);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Available tickets for quick test-scanning simulation
-  const [availableTickets, setAvailableTickets] = useState<Ticket[]>([]);
-
   // Sound effects using Web Audio API
   const playSound = (type: 'success' | 'error') => {
     try {
@@ -99,7 +95,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setAvailableTickets(StorageService.getTickets());
       isScanningActiveRef.current = true;
       startCamera();
 
@@ -214,9 +209,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     const hostId = currentUser?.uid || 'host-council-101';
     const result = StorageService.verifyAndProcessScan(token.trim(), hostId);
     setIsProcessing(false);
-
-    // Refresh tickets list
-    setAvailableTickets(StorageService.getTickets());
 
     // Record last scanned ticket for preview
     if (result.ticket) {
@@ -647,57 +639,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               >
                 Verify
               </button>
-            </div>
-          </div>
-
-          {/* ================= QUICK TEST PASSES SIMULATOR ================= */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                Quick Test Passes (Gate Test Bench)
-              </span>
-              <span className="text-[10px] text-slate-500">1-tap to test 2s feedback</span>
-            </div>
-
-            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-              {availableTickets.length > 0 ? (
-                availableTickets.map((t) => {
-                  const isEntered = t.entryStatus === 'entered';
-                  return (
-                    <div
-                      key={t.ticketId}
-                      onClick={() => processToken(t.qrToken)}
-                      className="p-2.5 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 hover:border-indigo-300 cursor-pointer flex items-center justify-between gap-2 text-xs transition active:scale-[0.99] shadow-2xs"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-900 truncate">{t.userName}</span>
-                          <span className="font-mono text-[10px] text-indigo-600 font-semibold">{t.ticketId}</span>
-                          <span className="px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100">
-                            👤 {(t.quantity || 1)} {(t.quantity || 1) > 1 ? 'Visitors' : 'Visitor'}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 truncate">{t.eventTitle}</p>
-                      </div>
-
-                      <div className="shrink-0">
-                        {isEntered ? (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200">
-                            Already Entered (Tap to test 'X')
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Unused (Tap to test '✓')
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-xs text-slate-500 py-3 text-center">No issued passes found. Book a pass to test scanning!</p>
-              )}
             </div>
           </div>
         </div>
