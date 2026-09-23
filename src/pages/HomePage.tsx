@@ -196,23 +196,26 @@ export const HomePage: React.FC<HomePageProps> = ({
   const quickSearchTags = ['AI Summit', 'Football Derby', 'Hackathon', 'Cultural Night', 'Sports Complex', 'Auditorium'];
 
   return (
-    <div className="pb-28 max-w-4xl mx-auto px-4 pt-3 bg-slate-50 min-h-screen text-slate-900">
+    <div className="pb-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 bg-slate-50 min-h-screen text-slate-900">
       {/* ================= 1. HERO BANNER (FIRST) ================= */}
       {!searchQuery && (
-        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-950 p-5 sm:p-6 mb-4 shadow-md text-white">
-          <div className="relative z-10 max-w-lg">
+        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-950 p-6 sm:p-8 lg:p-10 mb-6 shadow-md text-white">
+          <div className="relative z-10 max-w-2xl">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-amber-300 text-xs font-bold mb-3 border border-white/20">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Campus Fest Season '26
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
               Discover What's Happening 🎉
             </h1>
-            <p className="text-xs sm:text-sm text-indigo-100 mt-2 leading-relaxed">
-              Book digital passes with 1-click UPI, receive your anti-counterfeit QR entry code instantly, and never miss the hottest campus summits & tournaments.
+            <p className="text-xs sm:text-base text-indigo-100 mt-3 leading-relaxed">
+              Book digital passes with 1-click UPI, receive your anti-counterfeit QR entry code instantly, and never miss the hottest campus summits, cultural fests & tournaments.
             </p>
           </div>
 
-          <div className="absolute -right-10 -bottom-10 w-52 h-52 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute right-10 top-6 hidden lg:block opacity-20 pointer-events-none">
+            <TicketIcon className="w-56 h-56 -rotate-12 text-white" />
+          </div>
         </div>
       )}
 
@@ -471,13 +474,13 @@ export const HomePage: React.FC<HomePageProps> = ({
       {/* ================= 8. RESULTS LIST WITH SKELETON ANIMATIONS ================= */}
       {isLoading ? (
         /* Skeleton Cards Loading Grid/List */
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-3'}>
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
           {[1, 2, 3, 4, 5, 6].map((key) => (
             <EventCardSkeleton key={key} layout={viewMode} />
           ))}
         </div>
       ) : filteredEvents.length > 0 ? (
-        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'space-y-3'}>
+        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
           {filteredEvents.map((event) => (
             <EventCard
               key={event.eventId}

@@ -2,14 +2,14 @@ import React, { useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import { Ticket } from '../types';
 import { StorageService } from '../services/storageService';
-import { Calendar, Clock, MapPin, Download, Share2, ShieldCheck, Sparkles, PhoneCall, Copy, Check } from 'lucide-react';
+import { Calendar, Clock, MapPin, Download, Share2, ShieldCheck, Sparkles, PhoneCall, Copy, Check, X } from 'lucide-react';
 
 interface DigitalTicketProps {
   ticket: Ticket;
   onClose?: () => void;
 }
 
-export const DigitalTicket: React.FC<DigitalTicketProps> = ({ ticket }) => {
+export const DigitalTicket: React.FC<DigitalTicketProps> = ({ ticket, onClose }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = React.useState(false);
 
@@ -90,7 +90,20 @@ export const DigitalTicket: React.FC<DigitalTicketProps> = ({ ticket }) => {
             <span className="text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-amber-300 border border-amber-400/40 flex items-center gap-1">
               <Sparkles className="w-3 h-3" /> CampusPass Verified
             </span>
-            {getStatusBadge()}
+            <div className="flex items-center gap-1.5">
+              {getStatusBadge()}
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="w-7 h-7 rounded-full bg-black/70 hover:bg-black/90 text-white flex items-center justify-center border border-white/30 transition active:scale-90"
+                  title="Cut / Close Ticket"
+                  aria-label="Cut / Close Ticket"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -217,6 +230,16 @@ export const DigitalTicket: React.FC<DigitalTicketProps> = ({ ticket }) => {
 
       {/* Ticket action buttons */}
       <div className="mt-3 flex gap-2 justify-center">
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="py-2.5 px-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition active:scale-95 shrink-0"
+          >
+            <X className="w-4 h-4" />
+            <span>Close Pass</span>
+          </button>
+        )}
         <button
           onClick={() => alert(`Ticket ${ticket.ticketId} saved to device!`)}
           className="flex-1 py-2.5 px-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 flex items-center justify-center gap-2 shadow-xs transition"

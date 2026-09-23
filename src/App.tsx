@@ -14,6 +14,7 @@ import { AuthPage } from './pages/AuthPage';
 import { QrScannerModal } from './components/QrScannerModal';
 import { CreateEventModal } from './components/CreateEventModal';
 import { DigitalTicket } from './components/DigitalTicket';
+import { Footer } from './components/Footer';
 import { X } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -82,6 +83,12 @@ export const App: React.FC = () => {
           setSelectedEvent(null);
           setActiveTab(tab === 'explore' ? 'home' : tab);
         }}
+        onOpenScanner={() => {
+          setPrefilledScanTicket(null);
+          setIsScannerOpen(true);
+        }}
+        onOpenCreateEvent={() => setIsCreateEventOpen(true)}
+        ticketCount={tickets.filter(t => t.entryStatus !== 'entered').length}
       />
 
       {/* Main Content Area */}
@@ -160,7 +167,17 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Floating Bottom Navigation Bar */}
+      {/* Responsive Website Footer (Visible on desktop & full pages) */}
+      <Footer 
+        onNavigate={(tab) => {
+          setSelectedEvent(null);
+          setSelectedAttendeeEvent(null);
+          setActiveTab(tab);
+        }}
+        role={role}
+      />
+
+      {/* Floating Bottom Navigation Bar (Hidden on desktop md+) */}
       <BottomNav
         currentTab={activeTab}
         onSelectTab={(tab) => {
@@ -198,13 +215,21 @@ export const App: React.FC = () => {
 
       {/* Newly Purchased Digital Ticket Modal */}
       {newlyPurchasedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="relative w-full max-w-sm my-auto">
+        <div 
+          onClick={() => setNewlyPurchasedTicket(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-sm my-auto cursor-default"
+          >
             <button
+              type="button"
               onClick={() => setNewlyPurchasedTicket(null)}
-              className="absolute -top-12 right-0 w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-700 shadow-md flex items-center justify-center hover:bg-slate-100 transition z-10"
+              className="absolute -top-11 right-0 py-1.5 px-3 rounded-full bg-white/95 hover:bg-white border border-slate-200 text-slate-800 font-bold text-xs shadow-md flex items-center gap-1.5 transition z-10 active:scale-95"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 text-slate-600" />
+              <span>Cut / Close</span>
             </button>
             <DigitalTicket
               ticket={newlyPurchasedTicket}

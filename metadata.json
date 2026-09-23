@@ -1,6 +1,6 @@
 {
   "name": "CampusPass - College Events & Tickets",
-  "description": "Mobile-first college event discovery and ticketing platform with UPI payment verification, digital QR tickets, and host entry scanner.",
+  "description": "Full-width responsive college event discovery and ticketing web platform with 1-click UPI payments, digital anti-counterfeit QR passes, and real-time gate scanner ledger.",
   "requestFramePermissions": [
     "camera"
   ],

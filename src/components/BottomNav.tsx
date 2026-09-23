@@ -28,7 +28,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
   if (role === 'host') {
     return (
-      <nav className="fixed bottom-0 left-0 right-0 z-40 h-[60px] bg-white/95 backdrop-blur-lg border-t border-slate-200/90 px-2 pb-safe shadow-lg flex items-center">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-[60px] bg-white/95 backdrop-blur-lg border-t border-slate-200/90 px-2 pb-safe shadow-lg flex items-center">
         <div className="max-w-md w-full mx-auto flex items-center justify-around">
           <button
             onClick={() => onSelectTab('host-dashboard')}
@@ -86,7 +86,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 h-[60px] bg-white/95 backdrop-blur-lg border-t border-slate-200/90 px-3 pb-safe shadow-lg flex items-center">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-[60px] bg-white/95 backdrop-blur-lg border-t border-slate-200/90 px-3 pb-safe shadow-lg flex items-center">
       <div className="max-w-md w-full mx-auto flex items-center justify-around">
         <button
           onClick={() => onSelectTab('home')}

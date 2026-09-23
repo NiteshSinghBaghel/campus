@@ -20,7 +20,11 @@ import {
   Minus,
   Sparkles,
   QrCode,
-  Download
+  Download,
+  CreditCard,
+  Smartphone,
+  Building2,
+  Lock
 } from 'lucide-react';
 
 interface PaymentModalProps {
@@ -50,6 +54,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
   const [collegeName, setCollegeName] = useState(currentUser?.college || 'IIT Delhi');
   const [rollNo, setRollNo] = useState('CS23B041');
   const [ticketQuantity, setTicketQuantity] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'netbanking'>('upi');
+  const [upiId, setUpiId] = useState('');
 
   // Form validation errors
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
@@ -123,7 +129,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
       setStep('verifying');
       const dummyPaymentId = `pay_gw_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
 
-      const vpaAddress = `${phone}@gateway`;
+      const vpaAddress = upiId.trim() || `${phone}@gateway`;
 
       // Step 3: Server verifies payment signature, decrements stock by quantity, and mints ticket
       const verification = await PaymentService.verifyPayment({
@@ -161,8 +167,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col text-slate-900">
+    <div 
+      onClick={() => {
+        if (step !== 'processing' && step !== 'verifying') {
+          onClose();
+        }
+      }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto cursor-pointer"
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col text-slate-900 cursor-default"
+      >
         {/* Close Button */}
         {step !== 'processing' && step !== 'verifying' && (
           <button
@@ -381,6 +397,81 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ event, isOpen, onClo
                   </button>
                 </div>
               </div>
+
+              {/* Payment Gateway Selector (When not free) */}
+              {totalAmount > 0 && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase tracking-wider">
+                      <Lock className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Select Payment Gateway Mode</span>
+                    </label>
+                    <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      256-bit Encrypted
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('upi')}
+                      className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 text-xs font-bold transition ${
+                        paymentMethod === 'upi'
+                          ? 'bg-indigo-50 border-indigo-600 text-indigo-700 shadow-2xs'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <Smartphone className="w-4 h-4 text-emerald-600" />
+                      <span>Instant UPI</span>
+                      <span className="text-[9px] text-slate-400 font-normal">GPay / PhonePe</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('card')}
+                      className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 text-xs font-bold transition ${
+                        paymentMethod === 'card'
+                          ? 'bg-indigo-50 border-indigo-600 text-indigo-700 shadow-2xs'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <CreditCard className="w-4 h-4 text-indigo-600" />
+                      <span>Debit / Credit</span>
+                      <span className="text-[9px] text-slate-400 font-normal">Visa / RuPay</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMethod('netbanking')}
+                      className={`p-2.5 rounded-xl border flex flex-col items-center justify-center gap-1 text-xs font-bold transition ${
+                        paymentMethod === 'netbanking'
+                          ? 'bg-indigo-50 border-indigo-600 text-indigo-700 shadow-2xs'
+                          : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      <Building2 className="w-4 h-4 text-amber-600" />
+                      <span>NetBanking</span>
+                      <span className="text-[9px] text-slate-400 font-normal">All Major Banks</span>
+                    </button>
+                  </div>
+
+                  {paymentMethod === 'upi' && (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 animate-fade-in">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-slate-600 font-medium">Virtual Payment Address (VPA):</span>
+                        <span className="text-emerald-700 font-bold font-mono">Verified Gateway</span>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. mobile@upi or student@okhdfcbank"
+                        value={upiId}
+                        onChange={(e) => setUpiId(e.target.value)}
+                        className="w-full px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-mono text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Pass Total Box */}
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-1.5">

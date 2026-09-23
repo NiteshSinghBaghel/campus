@@ -5,22 +5,22 @@ import { StorageService } from '../services/storageService';
 import { useAuth } from '../context/AuthContext';
 import { ScannerScanResult, Ticket } from '../types';
 import { 
-  X, 
+  ArrowLeft,
   Scan, 
   Camera, 
-  Upload,
+  CheckCircle2, 
+  AlertCircle,
+  Users, 
+  Clock, 
+  Ticket as TicketIcon, 
+  GraduationCap, 
+  ShieldCheck, 
   RefreshCw,
+  Search,
   UserCheck,
-  ShieldCheck,
-  Phone,
-  Calendar,
-  MapPin,
-  Clock,
-  Hash,
-  GraduationCap,
-  Users,
-  Ticket as TicketIcon
+  FileCheck
 } from 'lucide-react';
+import { ManualVerifyModal } from './ManualVerifyModal';
 
 interface QrScannerModalProps {
   isOpen: boolean;
@@ -44,9 +44,17 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const [activeScannedTicket, setActiveScannedTicket] = useState<Ticket | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string>('');
 
-  // Persisted Last Scanned Ticket for Preview (User Request: "and at last preview show karo")
+  // Persisted Last Scanned Ticket
   const [lastScannedTicket, setLastScannedTicket] = useState<Ticket | null>(null);
-  const [lastScanResult, setLastScanResult] = useState<ScannerScanResult | null>(null);
+
+  // Recent Gate Entries List
+  const [recentEntries, setRecentEntries] = useState<Ticket[]>([]);
+
+  // Manual Verify Modal Open State
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+
+  // Camera Facing Mode: 'environment' (back) or 'user' (front)
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [manualTokenInput, setManualTokenInput] = useState('');
@@ -59,6 +67,15 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isScanningActiveRef = useRef<boolean>(true);
   const feedbackTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Refresh recent entries list
+  const loadRecentEntries = () => {
+    const all = StorageService.getTickets();
+    const entered = all.filter(t => t.entryStatus === 'entered');
+    // Sort latest entry first
+    entered.sort((a, b) => (b.entryTime || b.issuedAt || '').localeCompare(a.entryTime || a.issuedAt || ''));
+    setRecentEntries(entered);
+  };
 
   // Sound effects using Web Audio API
   const playSound = (type: 'success' | 'error') => {
@@ -93,9 +110,11 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     }
   };
 
+  // Direct Auto Camera Start on mount
   useEffect(() => {
     if (isOpen) {
       isScanningActiveRef.current = true;
+      loadRecentEntries();
       startCamera();
 
       if (prefilledTicket) {
@@ -118,16 +137,18 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     };
   }, [isOpen, prefilledTicket]);
 
-  const startCamera = async () => {
+  const startCamera = async (targetFacingMode?: 'environment' | 'user') => {
+    stopCamera();
     setCameraError(null);
+    const activeFacingMode = targetFacingMode || facingMode;
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error('Camera access is not supported on this device/browser');
+        throw new Error('Camera access is not supported on this browser or connection');
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          facingMode: 'environment',
+          facingMode: { ideal: activeFacingMode },
           width: { ideal: 1280 },
           height: { ideal: 720 }
         }
@@ -136,7 +157,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute('playsinline', 'true'); // Required for iOS Safari
+        videoRef.current.setAttribute('playsinline', 'true');
         await videoRef.current.play();
         setCameraActive(true);
         isScanningActiveRef.current = true;
@@ -144,9 +165,15 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       }
     } catch (err: any) {
       console.warn('Camera could not be accessed directly:', err);
-      setCameraError(err.message || 'Camera permission not granted or unavailable.');
+      setCameraError(err.message || 'Camera permission denied or camera device unavailable.');
       setCameraActive(false);
     }
+  };
+
+  const toggleCamera = () => {
+    const nextMode = facingMode === 'environment' ? 'user' : 'environment';
+    setFacingMode(nextMode);
+    startCamera(nextMode);
   };
 
   const stopCamera = () => {
@@ -187,7 +214,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
           });
 
           if (code && code.data && code.data.trim()) {
-            // QR Code Detected! Pause scanning and process
             isScanningActiveRef.current = false;
             processToken(code.data.trim());
             return;
@@ -214,11 +240,10 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     if (result.ticket) {
       setLastScannedTicket(result.ticket);
     }
-    setLastScanResult(result);
 
-    // USER REQUIREMENT LOGIC:
-    // "agar scan ho chuka hai tho screen me message show karo already enter kar ke and x ka red sign do 2 second ke liye screen me
-    // and new ahi tho verified kar ke crorect ka sign screen me show karo 2 second ke liye and again scan satrt hoga"
+    // Refresh Recent Entries list immediately
+    loadRecentEntries();
+
     if (result.code === 'ALREADY_ENTERED') {
       // 1. Already entered -> Show Red X sign & 'ALREADY ENTER' for 2 seconds
       playSound('error');
@@ -270,396 +295,354 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     }
   };
 
-  // Image Upload Scan Handler (Convenience for testing saved QR pass screenshots)
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height);
-          if (code && code.data) {
-            processToken(code.data);
-          } else {
-            alert('No QR code found in the uploaded image. Please ensure the QR code is clear.');
-          }
-        }
-      };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
-  };
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl p-5 sm:p-6 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col my-auto">
-        
-        {/* ================= MODAL HEADER ================= */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-              <Scan className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-black text-slate-900">Live Gate Entry Scanner</h3>
-              <p className="text-[11px] text-slate-500">Auto camera verification with 2s live response</p>
-            </div>
-          </div>
-
+    <div className="fixed inset-0 z-50 bg-slate-100 text-slate-900 flex flex-col w-full h-full overflow-hidden animate-fade-in font-sans">
+      
+      {/* ================= TOP FULL-PAGE HEADER (LIGHT THEME) ================= */}
+      <header className="px-4 py-3 sm:px-6 sm:py-3.5 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-xs">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => {
               stopCamera();
               onClose();
             }}
-            className="p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
-            aria-label="Close scanner"
+            className="py-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition active:scale-95 border border-slate-200 shadow-2xs"
+            aria-label="Back to dashboard"
           >
-            <X className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
+            <span>Exit Scanner</span>
           </button>
+
+          <div>
+            <h1 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+              <span>Gate Entry Scanner</span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                Live
+              </span>
+            </h1>
+            <p className="text-[11px] text-slate-500 hidden sm:block">
+              High-speed automatic camera gate check-in with 2-second turnaround
+            </p>
+          </div>
         </div>
 
-        {/* ================= SCROLLABLE BODY ================= */}
-        <div className="mt-4 overflow-y-auto pr-1 flex-1 space-y-4">
-          
-          {/* ================= CAMERA / SCANNER VIEWPORT WITH 2-SECOND FEEDBACK OVERLAY ================= */}
-          <div className="relative rounded-3xl bg-slate-950 border border-slate-800 overflow-hidden h-64 sm:h-72 flex flex-col items-center justify-center shadow-inner">
-            
-            {/* Live Camera Stream */}
-            <video 
-              ref={videoRef} 
-              className={`w-full h-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
-              playsInline
-              muted
-            />
+        {/* Actions & Status */}
+        <div className="flex items-center gap-2">
+          {/* Dedicated Manual Ticket Verify Button requested by user */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsManualModalOpen(true);
+            }}
+            className="py-1.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black flex items-center gap-1.5 shadow-2xs transition active:scale-95"
+            title="Manual Ticket Verification: Click to enter ticket ID"
+          >
+            <FileCheck className="w-3.5 h-3.5 text-amber-700" />
+            <span className="hidden sm:inline">Manual Ticket Verify</span>
+            <span className="sm:hidden">Manual Verify</span>
+          </button>
 
-            {/* Scanning Laser Beam & Target Frame */}
-            {cameraActive && !feedbackState && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-48 h-48 sm:w-56 sm:h-56 border-2 border-indigo-400/80 rounded-3xl relative">
-                  {/* Corner Accent Marks */}
-                  <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-indigo-400 rounded-tl-xl" />
-                  <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-indigo-400 rounded-tr-xl" />
-                  <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-indigo-400 rounded-bl-xl" />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-indigo-400 rounded-br-xl" />
-                  
-                  {/* Animated Horizontal Laser Scan Line */}
-                  <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-glow animate-pulse absolute top-1/2 -translate-y-1/2" />
-                </div>
-                
-                <div className="absolute bottom-3 py-1 px-3 rounded-full bg-slate-900/90 border border-slate-700 text-white text-[11px] font-semibold tracking-wide">
-                  Align QR Code inside frame
-                </div>
-              </div>
-            )}
-
-            {/* Camera Off / Fallback View */}
-            {!cameraActive && !feedbackState && (
-              <div className="text-center p-5">
-                <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 mx-auto mb-3">
-                  <Camera className="w-7 h-7" />
-                </div>
-                <p className="text-sm font-bold text-white">Live Camera QR Scanner</p>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                  {cameraError || 'Allow camera permission to scan attendee tickets instantly at the gate'}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                  <button
-                    onClick={startCamera}
-                    className="py-2.5 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs shadow-md transition active:scale-95"
-                  >
-                    Start Live Camera
-                  </button>
-                  <label className="py-2.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs cursor-pointer flex items-center gap-1.5 transition">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Scan QR Photo</span>
-                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* ================= USER SPECIFIED 2-SECOND FEEDBACK OVERLAYS ================= */}
-            {/* 1. ALREADY ENTERED (Red X Sign for 2 seconds) */}
-            {feedbackState === 'already_entered' && (
-              <div className="absolute inset-0 bg-[#380b12]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 animate-scale-in">
-                {/* Large Red X Sign */}
-                <div className="w-20 h-20 rounded-full bg-rose-500/20 border-4 border-rose-500 text-rose-500 flex items-center justify-center shadow-2xl mb-2 animate-bounce">
-                  <span className="text-5xl font-black leading-none pb-1">✕</span>
-                </div>
-
-                {/* Big Bold Message */}
-                <h2 className="text-2xl font-black text-rose-400 tracking-tight">
-                  ALREADY ENTERED
-                </h2>
-                
-                <p className="text-xs font-semibold text-rose-200 mt-0.5">
-                  Ticket already checked in! Duplicate entry rejected.
-                </p>
-
-                {/* Attendee Details with Visitor Count */}
-                {activeScannedTicket && (
-                  <div className="mt-3 px-4 py-2.5 rounded-2xl bg-black/40 border border-rose-500/30 text-xs text-rose-100 max-w-xs w-full text-left space-y-1">
-                    <div className="flex items-center justify-between pb-1 border-b border-rose-500/20">
-                      <span className="font-bold flex items-center gap-1 text-rose-200">
-                        <Users className="w-3.5 h-3.5 text-rose-400" />
-                        Passes / Visitors:
-                      </span>
-                      <span className="font-black px-2 py-0.5 rounded-md bg-rose-950 text-rose-300 border border-rose-800 text-[11px]">
-                        {(activeScannedTicket.quantity || 1)} {(activeScannedTicket.quantity || 1) > 1 ? 'Visitors' : 'Visitor'}
-                      </span>
-                    </div>
-                    <p className="truncate"><b>Attendee:</b> {activeScannedTicket.userName}</p>
-                    <p className="font-mono text-[11px] text-rose-300"><b>ID:</b> {activeScannedTicket.ticketId}</p>
-                    <p className="text-[11px] text-rose-300"><b>First Check-in:</b> {activeScannedTicket.entryTime || 'Earlier'}</p>
-                  </div>
-                )}
-
-                {/* 2-Second Visual Countdown Indicator */}
-                <div className="mt-4 w-40 h-1.5 bg-rose-950 rounded-full overflow-hidden">
-                  <div className="h-full bg-rose-500 rounded-full animate-[pulse_0.4s_infinite]" style={{ width: '100%' }} />
-                </div>
-                <span className="text-[10px] text-rose-300 mt-1 font-medium">
-                  Resuming scanner in 2 seconds...
-                </span>
-              </div>
-            )}
-
-            {/* 2. VERIFIED (Green Correct Checkmark for 2 seconds) */}
-            {feedbackState === 'verified' && (
-              <div className="absolute inset-0 bg-[#062916]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 animate-scale-in">
-                {/* Large Green Correct Sign */}
-                <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-4 border-emerald-400 text-emerald-400 flex items-center justify-center shadow-2xl mb-2 animate-bounce">
-                  <span className="text-4xl font-black leading-none pb-1">✓</span>
-                </div>
-
-                {/* VISITOR COUNT BADGE AS REQUESTED */}
-                {activeScannedTicket && (
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider mb-1.5 shadow-md">
-                    <Users className="w-3.5 h-3.5 stroke-[2.5]" />
-                    <span>ADMIT {(activeScannedTicket.quantity || 1)} {(activeScannedTicket.quantity || 1) > 1 ? 'VISITORS' : 'VISITOR'}</span>
-                    <span className="opacity-75">({(activeScannedTicket.quantity || 1)} {(activeScannedTicket.quantity || 1) > 1 ? 'Passes' : 'Pass'})</span>
-                  </div>
-                )}
-
-                {/* Big Bold Message */}
-                <h2 className="text-2xl font-black text-emerald-400 tracking-tight">
-                  VERIFIED & GRANTED
-                </h2>
-
-                <p className="text-xs font-semibold text-emerald-200 mt-0.5">
-                  Gate clearance approved • Welcome to the Event!
-                </p>
-
-                {/* Attendee Details with Visitor count */}
-                {activeScannedTicket && (
-                  <div className="mt-3 px-4 py-2.5 rounded-2xl bg-black/40 border border-emerald-500/30 text-xs text-emerald-100 max-w-xs w-full text-left space-y-1">
-                    <div className="flex items-center justify-between pb-1 border-b border-emerald-500/20">
-                      <span className="font-bold flex items-center gap-1 text-emerald-300">
-                        <Users className="w-3.5 h-3.5 text-emerald-400" />
-                        Admit Visitors:
-                      </span>
-                      <span className="font-black px-2 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800 text-[11px]">
-                        {(activeScannedTicket.quantity || 1)} {(activeScannedTicket.quantity || 1) > 1 ? 'Visitors' : 'Visitor'}
-                      </span>
-                    </div>
-                    <p className="truncate"><b>Attendee:</b> {activeScannedTicket.userName}</p>
-                    <p className="font-mono text-[11px] text-emerald-300"><b>Ticket ID:</b> {activeScannedTicket.ticketId}</p>
-                    <p className="text-[11px] text-emerald-300"><b>Check-in Time:</b> {activeScannedTicket.entryTime || 'Now'}</p>
-                  </div>
-                )}
-
-                {/* 2-Second Visual Countdown Indicator */}
-                <div className="mt-4 w-40 h-1.5 bg-emerald-950 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-400 rounded-full animate-[pulse_0.4s_infinite]" style={{ width: '100%' }} />
-                </div>
-                <span className="text-[10px] text-emerald-300 mt-1 font-medium">
-                  Next scan starting in 2 seconds...
-                </span>
-              </div>
-            )}
-
-            {/* 3. INVALID TOKEN (Red X for 2 seconds) */}
-            {feedbackState === 'invalid' && (
-              <div className="absolute inset-0 bg-[#380b12]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 animate-scale-in">
-                <div className="w-20 h-20 rounded-full bg-rose-500/20 border-4 border-rose-500 text-rose-500 flex items-center justify-center shadow-2xl mb-3">
-                  <span className="text-5xl font-black leading-none pb-1">✕</span>
-                </div>
-
-                <h2 className="text-2xl font-black text-rose-400 tracking-tight">
-                  INVALID PASS
-                </h2>
-                <p className="text-xs text-rose-200 mt-1 max-w-xs">
-                  {feedbackMessage}
-                </p>
-
-                <div className="mt-4 w-40 h-1.5 bg-rose-950 rounded-full overflow-hidden">
-                  <div className="h-full bg-rose-500 rounded-full animate-pulse" style={{ width: '100%' }} />
-                </div>
-                <span className="text-[10px] text-rose-300 mt-1 font-medium">
-                  Resuming scanner in 2 seconds...
-                </span>
-              </div>
-            )}
+          <div className="px-3.5 py-1.5 rounded-2xl bg-slate-50 border border-slate-200 text-right shadow-2xs">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-bold">Total Entered</span>
+            <span className="text-sm font-black text-emerald-600">{recentEntries.length} Attendees</span>
           </div>
+        </div>
+      </header>
 
-          {/* ================= USER SPECIFIED: "and at last preview show karo" ================= */}
-          {/* DEDICATED LAST SCANNED TICKET PREVIEW CARD */}
-          {lastScannedTicket && (
-            <div className="p-4 rounded-3xl bg-slate-50 border border-slate-200 shadow-xs space-y-3 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black uppercase tracking-wider text-indigo-600 flex items-center gap-1.5">
-                  <Scan className="w-3.5 h-3.5" />
-                  Last Scanned Pass Preview
-                </span>
+      {/* ================= MAIN TWO-TIER FULL-PAGE CONTENT (LIGHT THEME) ================= */}
+      <div className="flex-1 overflow-y-auto flex flex-col p-3 sm:p-5 max-w-4xl mx-auto w-full gap-4">
+        
+        {/* ================= TOP: DIRECT CAMERA SCANNER VIEWPORT ================= */}
+        <div className="relative rounded-3xl bg-black border-2 border-slate-300 overflow-hidden min-h-[260px] sm:min-h-[300px] max-h-[340px] flex items-center justify-center shadow-xl shrink-0">
+          
+          {/* Switch Camera Button: Circular Arrow Icon Only (No Text) */}
+          <button
+            type="button"
+            onClick={toggleCamera}
+            className="absolute top-3 right-3 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/85 text-white flex items-center justify-center border border-white/30 shadow-lg backdrop-blur-md active:scale-90 active:rotate-180 transition-all duration-300"
+            title="Switch Camera (Front / Back)"
+            aria-label="Switch Camera"
+          >
+            <RefreshCw className="w-5 h-5 text-white" />
+          </button>
+
+          {/* Live Camera Stream */}
+          <video 
+            ref={videoRef} 
+            className={`w-full h-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
+            playsInline
+            muted
+          />
+
+          {/* Scanning Reticle & Laser Beam (Active when scanning) */}
+          {cameraActive && !feedbackState && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-48 h-48 sm:w-56 sm:h-56 border-2 border-indigo-400/90 rounded-3xl relative">
+                {/* Corner Marks */}
+                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-indigo-400 rounded-tl-xl" />
+                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-indigo-400 rounded-tr-xl" />
+                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-indigo-400 rounded-bl-xl" />
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-indigo-400 rounded-br-xl" />
                 
-                {lastScannedTicket.entryStatus === 'entered' ? (
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                    ✓ Checked In ({lastScannedTicket.entryTime})
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
-                    Not Entered
-                  </span>
-                )}
+                {/* Animated Horizontal Laser Scan Line */}
+                <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_12px_rgba(99,102,241,1)] animate-pulse absolute top-1/2 -translate-y-1/2" />
               </div>
-
-              {/* Ticket details body */}
-              <div className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-2 text-xs">
-                {/* Single-line Ticket Number as requested */}
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="text-slate-500 font-medium">Ticket Number:</span>
-                  <span className="font-mono font-black text-indigo-600 text-xs tracking-wider">
-                    {lastScannedTicket.ticketId}
-                  </span>
-                </div>
-
-                {/* Passes and Visitor Count Display (User Request) */}
-                <div className="p-2.5 rounded-2xl bg-indigo-50/80 border border-indigo-200/90 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black shadow-2xs">
-                      <Users className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-indigo-700 font-bold uppercase block tracking-wider">
-                        Admitted Visitors / Passes
-                      </span>
-                      <span className="text-sm font-black text-slate-900">
-                        {(lastScannedTicket.quantity || 1)} {(lastScannedTicket.quantity || 1) > 1 ? 'Visitors' : 'Visitor'}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono font-black px-2.5 py-1 rounded-full bg-white text-indigo-700 border border-indigo-200 shadow-2xs">
-                    {(lastScannedTicket.quantity || 1)} {(lastScannedTicket.quantity || 1) > 1 ? 'Passes' : 'Pass'}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-[10px] text-slate-500 block font-medium">Attendee Name</span>
-                    <span className="font-bold text-slate-900 text-sm truncate block">
-                      {lastScannedTicket.userName}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] text-slate-500 block font-medium">Student Roll No</span>
-                    <span className="font-semibold text-slate-800 truncate block">
-                      {lastScannedTicket.rollNo || 'CS23B041'}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
-                  <div>
-                    <span className="text-[10px] text-slate-500 block font-medium">College / University</span>
-                    <span className="text-slate-700 font-medium truncate block">
-                      {lastScannedTicket.college || 'IIT Delhi'}
-                    </span>
-                  </div>
-
-                  <div>
-                    <span className="text-[10px] text-slate-500 block font-medium">Event</span>
-                    <span className="text-slate-700 font-medium truncate block">
-                      {lastScannedTicket.eventTitle}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Organizer Helpline on Pass */}
-                {lastScannedTicket.hostPhone && (
-                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500 flex items-center gap-1">
-                      <Phone className="w-3 h-3 text-amber-600" />
-                      Organizer Helpline:
-                    </span>
-                    <a 
-                      href={`tel:${lastScannedTicket.hostPhone}`}
-                      className="font-bold text-amber-700 hover:underline"
-                    >
-                      {lastScannedTicket.hostPhone}
-                    </a>
-                  </div>
-                )}
+              
+              <div className="absolute bottom-3 py-1 px-3.5 rounded-full bg-slate-900/90 border border-slate-700 text-white text-[11px] font-semibold tracking-wide backdrop-blur-xs">
+                Align QR Code inside square to scan directly
               </div>
             </div>
           )}
 
-          {/* ================= MANUAL TOKEN / ID VERIFICATION ================= */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-            <label className="text-xs font-bold text-slate-700 block">
-              Verify by Ticket ID or Token:
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                placeholder="e.g. TKT-2026-90412 or paste QR string..."
-                value={manualTokenInput}
-                onChange={(e) => setManualTokenInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') processToken(manualTokenInput);
-                }}
-                className="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 shadow-xs"
-              />
+          {/* Camera Loading / Retry View */}
+          {!cameraActive && !feedbackState && (
+            <div className="text-center p-6 space-y-3">
+              <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 mx-auto">
+                <Camera className="w-7 h-7 text-indigo-400 animate-pulse" />
+              </div>
+              <h3 className="text-base font-bold text-white">Starting Live Camera Scanner...</h3>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                {cameraError || 'Accessing camera. Please ensure camera permissions are allowed on your device.'}
+              </p>
               <button
-                type="button"
-                onClick={() => processToken(manualTokenInput)}
-                disabled={isProcessing || !manualTokenInput.trim()}
-                className="py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs disabled:opacity-50 transition shadow-xs"
+                onClick={() => startCamera()}
+                className="py-2.5 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition inline-flex items-center gap-1.5"
               >
-                Verify
+                <RefreshCw className="w-3.5 h-3.5" /> Retry Camera
               </button>
             </div>
+          )}
+
+          {/* ================= 2-SECOND FEEDBACK OVERLAYS ================= */}
+          {/* 1. ALREADY ENTERED (Red X Sign for 2 seconds) */}
+          {feedbackState === 'already_entered' && (
+            <div className="absolute inset-0 bg-[#380b12]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 animate-scale-in">
+              <div className="w-16 h-16 rounded-full bg-rose-500/20 border-4 border-rose-500 text-rose-500 flex items-center justify-center shadow-2xl mb-2 animate-bounce">
+                <span className="text-4xl font-black leading-none pb-1">✕</span>
+              </div>
+
+              <h2 className="text-2xl font-black text-rose-400 tracking-tight">
+                ALREADY ENTERED
+              </h2>
+              
+              <p className="text-xs font-semibold text-rose-200 mt-0.5">
+                Ticket already checked in! Duplicate entry rejected.
+              </p>
+
+              {activeScannedTicket && (
+                <div className="mt-3 px-4 py-2 rounded-2xl bg-black/50 border border-rose-500/30 text-xs text-rose-100 max-w-sm w-full text-left space-y-1">
+                  <div className="flex items-center justify-between pb-1 border-b border-rose-500/20">
+                    <span className="font-bold flex items-center gap-1 text-rose-200">
+                      <Users className="w-3.5 h-3.5 text-rose-400" />
+                      Visitors:
+                    </span>
+                    <span className="font-black px-2 py-0.5 rounded-md bg-rose-950 text-rose-300 border border-rose-800 text-[11px]">
+                      {(activeScannedTicket.quantity || 1)} {(activeScannedTicket.quantity || 1) > 1 ? 'Visitors' : 'Visitor'}
+                    </span>
+                  </div>
+                  <p className="truncate"><b>Attendee:</b> {activeScannedTicket.userName}</p>
+                  <p className="font-mono text-[11px] text-rose-300"><b>ID:</b> {activeScannedTicket.ticketId}</p>
+                  <p className="text-[11px] text-rose-300"><b>First Entry:</b> {activeScannedTicket.entryTime || 'Earlier'}</p>
+                </div>
+              )}
+
+              <div className="mt-3 w-40 h-1.5 bg-rose-950 rounded-full overflow-hidden">
+                <div className="h-full bg-rose-500 rounded-full animate-pulse" style={{ width: '100%' }} />
+              </div>
+              <span className="text-[10px] text-rose-300 mt-1 font-medium">
+                Resuming camera in 2 seconds...
+              </span>
+            </div>
+          )}
+
+          {/* 2. VERIFIED (Green Correct Checkmark for 2 seconds) */}
+          {feedbackState === 'verified' && (
+            <div className="absolute inset-0 bg-[#062916]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 animate-scale-in">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 border-4 border-emerald-400 text-emerald-400 flex items-center justify-center shadow-2xl mb-2 animate-bounce">
+                <span className="text-4xl font-black leading-none pb-1">✓</span>
+              </div>
+
+              {activeScannedTicket && (
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider mb-1 shadow-md">
+                  <Users className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>ADMIT {(activeScannedTicket.quantity || 1)} {(activeScannedTicket.quantity || 1) > 1 ? 'VISITORS' : 'VISITOR'}</span>
+                </div>
+              )}
+
+              <h2 className="text-2xl font-black text-emerald-400 tracking-tight">
+                VERIFIED & GRANTED
+              </h2>
+
+              <p className="text-xs font-semibold text-emerald-200 mt-0.5">
+                Gate clearance approved • Welcome to the Event!
+              </p>
+
+              {activeScannedTicket && (
+                <div className="mt-3 px-4 py-2 rounded-2xl bg-black/50 border border-emerald-500/30 text-xs text-emerald-100 max-w-sm w-full text-left space-y-1">
+                  <p className="truncate"><b>Attendee:</b> {activeScannedTicket.userName} ({activeScannedTicket.rollNo || 'Student'})</p>
+                  <p className="font-mono text-[11px] text-emerald-300"><b>Ticket ID:</b> {activeScannedTicket.ticketId}</p>
+                  <p className="text-[11px] text-emerald-300"><b>Checked In:</b> {activeScannedTicket.entryTime || 'Just now'}</p>
+                </div>
+              )}
+
+              <div className="mt-3 w-40 h-1.5 bg-emerald-950 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-400 rounded-full animate-pulse" style={{ width: '100%' }} />
+              </div>
+              <span className="text-[10px] text-emerald-300 mt-1 font-medium">
+                Next scan starting in 2 seconds...
+              </span>
+            </div>
+          )}
+
+          {/* 3. INVALID TOKEN (Red X for 2 seconds) */}
+          {feedbackState === 'invalid' && (
+            <div className="absolute inset-0 bg-[#380b12]/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20 animate-scale-in">
+              <div className="w-16 h-16 rounded-full bg-rose-500/20 border-4 border-rose-500 text-rose-500 flex items-center justify-center shadow-2xl mb-2">
+                <span className="text-4xl font-black leading-none pb-1">✕</span>
+              </div>
+
+              <h2 className="text-2xl font-black text-rose-400 tracking-tight">
+                INVALID PASS
+              </h2>
+              <p className="text-xs text-rose-200 mt-1 max-w-xs">
+                {feedbackMessage}
+              </p>
+
+              <div className="mt-3 w-40 h-1.5 bg-rose-950 rounded-full overflow-hidden">
+                <div className="h-full bg-rose-500 rounded-full animate-pulse" style={{ width: '100%' }} />
+              </div>
+              <span className="text-[10px] text-rose-300 mt-1 font-medium">
+                Resuming camera in 2 seconds...
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* ================= QUICK MANUAL VERIFY ROW (LIGHT THEME) ================= */}
+        <div className="p-3 bg-white border border-slate-200 rounded-2xl flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between shrink-0 shadow-xs">
+          <div className="flex items-center gap-2 text-xs text-slate-700">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center shrink-0">
+              <FileCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-bold text-slate-900 leading-tight">Manual Verification Fallback</p>
+              <p className="text-[11px] text-slate-500">For phone screens with low brightness or camera glare</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2 items-center flex-1 sm:max-w-md">
+            <input
+              type="text"
+              placeholder="Enter Ticket ID (e.g. TKT-...) or QR token..."
+              value={manualTokenInput}
+              onChange={(e) => setManualTokenInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') processToken(manualTokenInput);
+              }}
+              className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition shadow-2xs"
+            />
+            <button
+              type="button"
+              onClick={() => processToken(manualTokenInput)}
+              disabled={isProcessing || !manualTokenInput.trim()}
+              className="py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs disabled:opacity-50 transition shadow-xs whitespace-nowrap active:scale-95"
+            >
+              Verify Pass
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsManualModalOpen(true)}
+              className="py-2.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs transition shadow-2xs whitespace-nowrap active:scale-95"
+              title="Open dedicated systematic verification window"
+            >
+              Systematic
+            </button>
           </div>
         </div>
 
-        {/* ================= MODAL FOOTER ================= */}
-        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 shrink-0">
-          <span className="flex items-center gap-1.5 font-medium">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            2s automatic gate turnaround loop
-          </span>
-          <button
-            onClick={() => {
-              stopCamera();
-              onClose();
-            }}
-            className="py-1.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition border border-slate-200"
-          >
-            Close Scanner
-          </button>
+        {/* ================= BOTTOM: RECENT ENTRIES LIST (LIGHT THEME) ================= */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-5 flex-1 flex flex-col min-h-[220px] shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3 shrink-0">
+            <div className="flex items-center gap-2">
+              <UserCheck className="w-4 h-4 text-emerald-600" />
+              <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                Recent Gate Entries
+              </h2>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200">
+              {recentEntries.length} Verified
+            </span>
+          </div>
+
+          {/* List of Recently Scanned / Entered Passes */}
+          <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+            {recentEntries.length === 0 ? (
+              <div className="text-center py-10 text-slate-400">
+                <TicketIcon className="w-8 h-8 mx-auto mb-2 opacity-30 text-slate-400" />
+                <p className="text-xs font-bold text-slate-600">No gate entries yet</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Point the camera at attendee ticket QR codes to see real-time check-ins here.
+                </p>
+              </div>
+            ) : (
+              recentEntries.map((ticket, index) => (
+                <div 
+                  key={ticket.ticketId || index}
+                  className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 hover:border-slate-300 transition flex items-center justify-between gap-3 text-xs shadow-2xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center text-emerald-700 font-black shrink-0">
+                      ✓
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 truncate text-xs">{ticket.userName}</span>
+                        {ticket.rollNo && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-200/70 text-slate-600 font-mono font-medium">
+                            {ticket.rollNo}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5 truncate">
+                        <span className="font-mono text-indigo-600 font-semibold">{ticket.ticketId}</span>
+                        <span>•</span>
+                        <span className="truncate">{ticket.college || 'College'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <Users className="w-3 h-3" />
+                      <span>{ticket.quantity || 1} {(ticket.quantity || 1) > 1 ? 'Visitors' : 'Visitor'}</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 flex items-center gap-1 justify-end mt-1 font-mono">
+                      <Clock className="w-3 h-3" />
+                      <span>{ticket.entryTime || 'Checked in'}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
+
       </div>
+
+      {/* Systematic Manual Ticket Verification Dialog */}
+      <ManualVerifyModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        hostId={currentUser?.uid || ''}
+        onVerifiedSuccess={(ticket) => {
+          loadRecentEntries();
+          onScanSuccess?.();
+          playSound('success');
+        }}
+      />
     </div>
   );
 };

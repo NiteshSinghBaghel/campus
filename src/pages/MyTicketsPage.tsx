@@ -28,49 +28,51 @@ export const MyTicketsPage: React.FC<MyTicketsPageProps> = ({ tickets, onExplore
   const displayedTickets = tab === 'upcoming' ? upcomingTickets : pastTickets;
 
   return (
-    <div className="pb-28 max-w-2xl mx-auto px-4 pt-3">
+    <div className="pb-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6">
       {/* Page Header */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-black text-slate-900">My E-Tickets</h1>
-        <p className="text-xs text-slate-500">
-          Digital entrance passes with cryptographically signed QR codes
-        </p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900">My E-Tickets</h1>
+          <p className="text-xs sm:text-sm text-slate-500">
+            Digital entrance passes with cryptographically signed anti-counterfeit QR tokens
+          </p>
+        </div>
+
+        {/* Tabs */}
+        <div className="p-1 bg-slate-100 rounded-2xl border border-slate-200 flex gap-1 shrink-0">
+          <button
+            onClick={() => setTab('upcoming')}
+            className={`py-2 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+              tab === 'upcoming'
+                ? 'bg-white text-indigo-600 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>Active & Upcoming</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
+              {upcomingTickets.length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setTab('past')}
+            className={`py-2 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 ${
+              tab === 'past'
+                ? 'bg-white text-indigo-600 shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <span>Past Passes</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
+              {pastTickets.length}
+            </span>
+          </button>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="p-1 bg-slate-100 rounded-2xl border border-slate-200 flex gap-1 mb-5">
-        <button
-          onClick={() => setTab('upcoming')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            tab === 'upcoming'
-              ? 'bg-white text-indigo-600 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <span>Active & Upcoming</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
-            {upcomingTickets.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setTab('past')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            tab === 'past'
-              ? 'bg-white text-indigo-600 shadow-xs'
-              : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          <span>Past / Completed</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
-            {pastTickets.length}
-          </span>
-        </button>
-      </div>
-
-      {/* Ticket List */}
+      {/* Ticket List (Grid on tablet/desktop) */}
       {displayedTickets.length > 0 ? (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {displayedTickets.map((t) => {
             const isEntered = t.entryStatus === 'entered';
             const isExited = t.exitStatus === 'exited';
@@ -168,13 +170,21 @@ export const MyTicketsPage: React.FC<MyTicketsPageProps> = ({ tickets, onExplore
 
       {/* Digital Ticket Modal */}
       {selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
-          <div className="relative w-full max-w-sm my-auto">
+        <div 
+          onClick={() => setSelectedTicket(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in overflow-y-auto cursor-pointer"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-sm my-auto cursor-default"
+          >
             <button
+              type="button"
               onClick={() => setSelectedTicket(null)}
-              className="absolute -top-12 right-0 w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-700 flex items-center justify-center hover:bg-slate-100 transition z-10 shadow-sm"
+              className="absolute -top-11 right-0 py-1.5 px-3 rounded-full bg-white/95 hover:bg-white border border-slate-200 text-slate-800 font-bold text-xs shadow-md flex items-center gap-1.5 transition z-10 active:scale-95"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 text-slate-600" />
+              <span>Cut / Close</span>
             </button>
             <DigitalTicket
               ticket={selectedTicket}
